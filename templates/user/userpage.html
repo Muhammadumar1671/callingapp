@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Call Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+    <style>
+        :root {
+            --primary: #000000;
+            --secondary: #333333;
+            --accent: #f5f5f5;
+            --background: #ffffff;
+            --foreground: #000000;
+            --border: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background-color: var(--background);
+            border-radius: 8px;
+            box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--foreground);
+            margin-bottom: 1.5rem;
+        }
+
+        .number-display {
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: var(--accent);
+            border-radius: 8px;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        .called-tag, .called-before-msg {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: var(--primary);
+            color: var(--background);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .called-before-msg {
+            top: 100%;
+            right: 0;
+            transform: translateY(10px);
+            background-color: var(--secondary);
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        button, .call-button {
+            background-color: var(--primary);
+            color: var(--background);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        button:hover, .call-button:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        button:active, .call-button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background-color: var(--border);
+            color: var(--foreground);
+            cursor: not-allowed;
+        }
+
+        .call-button {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .notes-section {
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        .notes-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            resize: vertical;
+            background-color: var(--background);
+            transition: border-color 0.3s ease;
+        }
+
+        .notes-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .csv-section {
+            margin-top: 30px;
+        }
+
+        .csv-list {
+            list-style-type: none;
+            background-color: var(--accent);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .csv-list li {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background-color: var(--background);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        .csv-list li:hover {
+            background-color: var(--border);
+            transform: translateY(-2px);
+        }
+
+        .csv-list li.selected {
+            background-color: var(--primary);
+            color: var(--background);
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .number-display {
+                font-size: 24px;
+            }
+
+            button, .call-button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+        }
+
+        .phone-numbers-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .phone-numbers-container h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: var(--secondary);
+        }
+
+        .phone-number-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .phone-number-button {
+            background-color: var(--accent);
+            color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .phone-number-button:hover {
+            background-color: var(--primary);
+            color: var(--background);
+        }
+
+        .phone-number-button.selected {
+            background-color: var(--primary);
+            color: var(--background);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Call Interface</h1>
+        <div class="number-display" id="currentNumber">
+            No number selected
+            <span class="called-tag" id="calledTag">Called</span>
+            <span class="called-before-msg" id="calledBeforeMsg">This number was called before</span>
+        </div>
+        <div id="phoneNumbers" class="phone-numbers-container"></div>
+        <div id="additionalInfo"></div>
+        <div class="navigation">
+            <button id="prevButton" disabled>Previous</button>
+            <button id="nextButton" disabled>Next</button>
+        </div>
+        <a href="tel:" class="call-button" id="callButton">Call</a>
+        <div class="notes-section">
+            <h2>Notes</h2>
+            <textarea class="notes-input" id="notes" rows="4" placeholder="Enter notes for this number..."></textarea>
+            <button id="saveNotesButton">Save Notes</button>
+        </div>
+        <div class="csv-section">
+            <h2>Select CSV File</h2>
+            <ul class="csv-list" id="csvList"></ul>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script>
+        const currentNumber = document.getElementById('currentNumber');
+        const calledTag = document.getElementById('calledTag');
+        const calledBeforeMsg = document.getElementById('calledBeforeMsg');
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        const callButton = document.getElementById('callButton');
+        const csvList = document.getElementById('csvList');
+        const notesInput = document.getElementById('notes');
+        const additionalInfo = document.getElementById('additionalInfo');
+        const saveNotesButton = document.getElementById('saveNotesButton');
+    
+        let csvData = [];
+        let currentCSV = '';
+        let currentIndex = 0;
+        let selectedPhoneNumber = '';
+    
+        function updateButtons() {
+            prevButton.disabled = currentIndex <= 0;
+            nextButton.disabled = currentIndex >= csvData.length - 1;
+    
+            const cleanPhone = sanitizePhoneNumber(selectedPhoneNumber || csvData[currentIndex]?.phone || '');
+            callButton.href = `tel:${cleanPhone}`;
+        }
+    
+        function showNumber() {
+            const data = csvData[currentIndex];
+            if (data) {
+                const phones = data.phone.split(',').map(p => p.trim());
+                if (phones.length > 1) {
+                    currentNumber.textContent = 'Multiple numbers available';
+                    displayPhoneNumbers(phones);
+                    selectedPhoneNumber = ''; // Reset selected phone number
+                } else {
+                    selectedPhoneNumber = phones[0];
+                    currentNumber.textContent = phones[0] || 'No number selected';
+                    document.getElementById('phoneNumbers').innerHTML = '';
+                }
+                
+                const isCalled = data.called === 'Yes';
+                calledTag.style.display = isCalled ? 'block' : 'none';
+                calledBeforeMsg.style.display = isCalled ? 'block' : 'none';
+                notesInput.value = data.notes || '';
+                updateAdditionalInfo(data);
+    
+                const lastCalledNumber = data.notes ? extractLastCalledNumber(data.notes) : '';
+                callButton.href = `tel:${sanitizePhoneNumber(lastCalledNumber || selectedPhoneNumber || data.phone)}`;
+            } else {
+                currentNumber.textContent = 'No number selected';
+                calledTag.style.display = 'none';
+                calledBeforeMsg.style.display = 'none';
+                notesInput.value = '';
+                additionalInfo.innerHTML = '';
+                document.getElementById('phoneNumbers').innerHTML = '';
+            }
+            updateButtons();
+        }
+    
+        function displayPhoneNumbers(phones) {
+            const phoneNumbersDiv = document.getElementById('phoneNumbers');
+            phoneNumbersDiv.innerHTML = '<h3>Select a phone number:</h3><div class="phone-number-buttons"></div>';
+            const buttonsContainer = phoneNumbersDiv.querySelector('.phone-number-buttons');
+            
+            phones.forEach((phone, index) => {
+                const button = document.createElement('button');
+                button.textContent = phone;
+                button.classList.add('phone-number-button');
+                button.addEventListener('click', () => selectPhoneNumber(phone, button));
+                buttonsContainer.appendChild(button);
+            });
+        }
+    
+        function selectPhoneNumber(phone, button) {
+            selectedPhoneNumber = sanitizePhoneNumber(phone);
+            currentNumber.textContent = selectedPhoneNumber;
+            callButton.href = `tel:${selectedPhoneNumber}`;
+            
+            // Remove 'selected' class from all buttons
+            document.querySelectorAll('.phone-number-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Add 'selected' class to the clicked button
+            button.classList.add('selected');
+
+            // Update the notes input with the selected phone number
+            const data = csvData[currentIndex];
+            if (data) {
+                const currentDate = new Date().toLocaleString();
+                const newNote = `Selected ${selectedPhoneNumber} on ${currentDate}`;
+                data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
+                notesInput.value = data.notes;
+            }
+        }
+    
+        function sanitizePhoneNumber(phone) {
+            return phone.replace(/[\[\]']/g, '').trim();
+        }
+    
+        function extractLastCalledNumber(notes) {
+            const lines = notes.split('\n');
+            const lastLine = lines.pop();
+            const lastCalledNumber = lastLine.split(' ')[1];
+            return sanitizePhoneNumber(lastCalledNumber);
+        }
+    
+        prevButton.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                showNumber();
+            }
+        });
+    
+        nextButton.addEventListener('click', () => {
+            if (currentIndex < csvData.length - 1) {
+                currentIndex++;
+                showNumber();
+            }
+        });
+    
+        callButton.addEventListener('click', () => {
+            const data = csvData[currentIndex];
+            if (data) {
+                data.called = 'Yes';
+                
+                const currentDate = new Date().toLocaleString();
+                const calledNumber = selectedPhoneNumber || data.phone.split(',')[0].trim();
+                const newNote = `Called ${calledNumber} on ${currentDate}`;
+                data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
+
+                notesInput.value = data.notes;
+                callButton.href = `tel:${sanitizePhoneNumber(calledNumber)}`;
+                
+                saveNotes(data.phone, data.notes);
+                
+                showNumber();
+            }
+        });
+    
+        saveNotesButton.addEventListener('click', () => {
+            const data = csvData[currentIndex];
+            if (data) {
+                const newNotes = notesInput.value;
+                data.notes = newNotes;
+                fetch('/user-dashboard/api/update_csv/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': Cookies.get('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        filename: currentCSV,
+                        phone: data.phone,
+                        notes: newNotes
+                    })
+                }).then(response => response.json())
+                  .then(result => {
+                      if (result.status === 'success') {
+                          showToast('Notes saved successfully', 'success');
+                          updateAdditionalInfo(data);
+                      } else {
+                          showToast('Failed to save notes', 'error');
+                      }
+                  });
+            }
+        });
+    
+        function loadCSVFiles() {
+            fetch('/user-dashboard/api/get_csv_files/')
+                .then(response => response.json())
+                .then(data => {
+                    csvList.innerHTML = '';
+                    data.csv_files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.textContent = file;
+                        li.addEventListener('click', () => loadCSVData(file));
+                        csvList.appendChild(li);
+                    });
+                });
+        }
+    
+        function loadCSVData(filename) {
+            currentCSV = filename;
+            fetch(`/user-dashboard/api/get_csv_data/${filename}`)
+                .then(response => response.json())
+                .then(data => {
+                    csvData = data.data;
+                    currentIndex = 0;
+                    showNumber();
+                });
+        }
+    
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    
+        function updateAdditionalInfo(data) {
+            additionalInfo.innerHTML = `
+                <p><strong>Name:</strong> ${data.name}</p>
+                <p><strong>Address:</strong> ${data.address}</p>
+                <p><strong>Services:</strong> ${data.services}</p>
+                <p><strong>Called:</strong> ${data.called === 'Yes' ? 'Yes' : 'No'}</p>
+                <p><strong>Previous Notes:</strong> ${data.notes || 'No notes'}</p>
+            `;
+        }
+    
+        // Initialize
+        loadCSVFiles();
+    </script>
+    
+</body>
+</html>

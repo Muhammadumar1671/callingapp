@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin User PDF Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #000;
+            margin-bottom: 1.5rem;
+        }
+
+        .admin-panel {
+            display: flex;
+            gap: 2rem;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+
+        .user-list, .pdf-upload, .document-list {
+            flex: 1;
+        }
+
+        ul {
+            list-style-type: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        li {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        li:hover {
+            background-color: #d0d7dc;
+        }
+
+        li.selected {
+            background-color: #000;
+            color: white;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-label {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #000;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .file-upload-label:hover {
+            background-color: #333;
+        }
+
+        #uploadButton {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            background-color: #000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        #uploadButton:hover {
+            background-color: #333;
+        }
+
+        #uploadButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Add these new styles */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 5px;
+            margin-left: 10px;
+        }
+
+        .delete-btn:hover {
+            color: #c82333;
+        }
+
+        /* Add these new styles for the toast and logout button */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin User PDF Manager</h1>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+        <div class="admin-panel">
+            <div class="user-list">
+                <h2>Select Users</h2>
+                <ul id="userList">
+                    <!-- User list will be populated dynamically -->
+                </ul>
+            </div>
+            <div class="pdf-upload">
+                <h2>Upload Document</h2>
+                <input type="file" id="documentFile" accept=".csv" />
+                <label for="documentFile" class="file-upload-label">Choose CSV File</label>
+                <button id="uploadButton" disabled>Upload Document</button>
+                <div id="message"></div>
+            </div>
+            <div class="document-list">
+                <h2>User Documents</h2>
+                <ul id="documentList">
+                    <!-- Document list will be populated dynamically -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const userList = document.getElementById('userList');
+        const documentFile = document.getElementById('documentFile');
+        const uploadButton = document.getElementById('uploadButton');
+        const message = document.getElementById('message');
+        const documentList = document.getElementById('documentList');
+    
+        let selectedUsers = [];
+    
+        // Function to get CSRF token from cookie
+        function getCSRFToken() {
+            const name = 'csrftoken=';
+            const decodedCookie = decodeURIComponent(document.cookie);
+            const cookieArray = decodedCookie.split(';');
+            for (let i = 0; i < cookieArray.length; i++) {
+                let cookie = cookieArray[i].trim();
+                if (cookie.indexOf(name) === 0) {
+                    return cookie.substring(name.length, cookie.length);
+                }
+            }
+            return null;
+        }
+    
+        // Fetch users from the backend
+        fetch('/admin-dashboard/get-users/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            userList.innerHTML = '';
+            data.users.forEach(user => {
+                console.log(user);
+                const li = document.createElement('li');
+                li.textContent = user.username;
+                li.dataset.userId = user.username; // Use 'username' as the identifier
+                userList.appendChild(li);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching users:', error);
+            message.textContent = 'Error loading users. Please try again.';
+            message.className = 'error';
+        });
+    
+        // Event listener for selecting users
+        userList.addEventListener('click', (e) => {
+            if ( e.target.tagName === 'LI') {
+                e.target.classList.toggle('selected');
+                updateSelectedUsers();
+    
+                // Fetch the documents for the selected user (only if one user is selected)
+                if (selectedUsers.length === 1) {
+                    console.log('Fetching documents for user:', selectedUsers[0]);
+                    fetchUserDocuments();
+                } else {
+                    documentList.innerHTML = '<li>Select one user to view their documents.</li>';
+                }
+            }
+        });
+    
+        documentFile.addEventListener('change', () => {
+            updateUploadButton();
+            updateSelectedFileName();
+        });
+    
+        uploadButton.addEventListener('click', uploadDocument);
+    
+        function updateSelectedUsers() {
+            selectedUsers = Array.from(userList.querySelectorAll('.selected')).map(li => li.dataset.userId);
+            console.log('Selected users:', selectedUsers);
+            updateUploadButton();
+        }
+    
+        function updateUploadButton() {
+            uploadButton.disabled = !documentFile.files.length || selectedUsers.length !== 1;
+        }
+    
+        function updateSelectedFileName() {
+            const fileNameDisplay = document.createElement('p');
+            fileNameDisplay.id = 'selectedFileName';
+            fileNameDisplay.style.marginTop = '0.5rem';
+    
+            if (documentFile.files.length > 0) {
+                fileNameDisplay.textContent = `Selected file: ${documentFile.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = 'No file selected';
+            }
+    
+            const existingFileNameDisplay = document.getElementById('selectedFileName');
+            if (existingFileNameDisplay) {
+                existingFileNameDisplay.replaceWith(fileNameDisplay);
+            } else {
+                document.querySelector('.pdf-upload').insertBefore(fileNameDisplay, uploadButton);
+            }
+        }
+    
+        function uploadDocument() {
+            const file = documentFile.files[0];
+            if (file && selectedUsers.length === 1) {
+                const formData = new FormData();
+                formData.append('document', file);
+                formData.append('username', selectedUsers[0]); // Pass the selected user's username
+    
+                console.log('Uploading document for user:', selectedUsers[0]);
+    
+                fetch('/admin-dashboard/add-document/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                    },
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    showToast(data.message);
+                    documentFile.value = '';
+                    updateUploadButton();
+                    updateSelectedFileName();
+                    fetchUserDocuments(); // Refresh the document list after upload
+                })
+                .catch(error => {
+                    console.error('Error uploading document:', error);
+                    showToast(error.message || 'Error uploading document. Please try again.', true);
+                });
+            }
+        }
+    
+        function fetchUserDocuments() {
+            if (selectedUsers.length === 1) {
+                const username = selectedUsers[0];
+                console.log('Fetching documents for user:', username);
+    
+                fetch(`/admin-dashboard/see-document/?username=${encodeURIComponent(username)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Received document data:', data);
+                    documentList.innerHTML = '';
+                    if (data.documents && data.documents.length > 0) {
+                        data.documents.forEach(docName => {
+                            const li = document.createElement('li');
+                            li.textContent = docName;
+    
+                            const deleteButton = document.createElement('button');
+                            deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                            deleteButton.className = 'delete-btn';
+                            deleteButton.title = 'Delete document';
+                            deleteButton.onclick = () => deleteDocument(docName);
+    
+                            li.appendChild(deleteButton);
+                            documentList.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement('li');
+                        li.textContent = 'No documents found for this user.';
+                        documentList.appendChild(li);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching user documents:', error);
+                    message.textContent = 'Error loading documents. Please try again.';
+                    message.className = 'error';
+                });
+            }
+        }
+    
+        function deleteDocument(documentName) {
+            if (selectedUsers.length === 1) {
+                fetch(`/admin-dashboard/delete-document/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        document_name: documentName,
+                        username: selectedUsers[0] // Use the selected user's username
+                    }),
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    showToast(data.message);
+                    fetchUserDocuments(); // Refresh the document list after deletion
+                })
+                .catch(error => {
+                    console.error('Error deleting document:', error);
+                    showToast(error.message || 'Error deleting document. Please try again.', true);
+                });
+            }
+        }
+    
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.backgroundColor = isError ? '#f44336' : '#4CAF50';
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    
+        function logout() {
+            fetch('/logout/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Delete all cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = ""
+                });
+    
+                console.log("Cookies deleted");
+                
+                // Redirect to login page
+                window.location.href = '/';
+            })
+            .catch(error => {
+                console.error('Error logging out:', error);
+                showToast('Error logging out. Please try again.', true);
+            });
+        }
+    
+        // Add event listener for logout button
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+    </script>
+    
+</body>
+</html>
