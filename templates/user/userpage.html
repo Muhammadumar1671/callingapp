@@ -230,11 +230,58 @@
             background-color: var(--primary);
             color: var(--background);
         }
+
+        .progress-container {
+            width: 100%;
+            background-color: var(--accent);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 20px;
+            background-color: var(--primary);
+            transition: width 0.5s ease-in-out;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 14px;
+            color: var(--secondary);
+        }
+
+        /* Add these new styles for the logout button */
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: var(--background);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: var(--secondary);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>User Call Interface</h1>
+        <!-- Add the logout button here -->
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
         <div class="number-display" id="currentNumber">
             No number selected
             <span class="called-tag" id="calledTag">Called</span>
@@ -269,23 +316,41 @@
         const notesInput = document.getElementById('notes');
         const additionalInfo = document.getElementById('additionalInfo');
         const saveNotesButton = document.getElementById('saveNotesButton');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
     
         let csvData = [];
         let currentCSV = '';
         let currentIndex = 0;
         let selectedPhoneNumber = '';
+        let timerInterval;
+        let remainingTime = 0;
     
         function updateButtons() {
             prevButton.disabled = currentIndex <= 0;
-            nextButton.disabled = currentIndex >= csvData.length - 1;
-    
+            nextButton.disabled = currentIndex >= csvData.length - 1 || remainingTime > 0;
+
             const cleanPhone = sanitizePhoneNumber(selectedPhoneNumber || csvData[currentIndex]?.phone || '');
             callButton.href = `tel:${cleanPhone}`;
+
+            // Update the next button text
+            if (remainingTime > 0) {
+                nextButton.textContent = `Next (${remainingTime}s)`;
+                nextButton.disabled = true;
+            } else {
+                nextButton.textContent = 'Next';
+                nextButton.disabled = currentIndex >= csvData.length - 1;
+            }
         }
     
         function showNumber() {
             const data = csvData[currentIndex];
             if (data) {
+                // Add this near the beginning of the function
+                if (currentIndex === findFirstUncalledIndex(csvData)) {
+                    showToast('Starting from the first uncalled number', 'info');
+                }
+
                 const phones = data.phone.split(',').map(p => p.trim());
                 if (phones.length > 1) {
                     currentNumber.textContent = 'Multiple numbers available';
@@ -305,6 +370,7 @@
     
                 const lastCalledNumber = data.notes ? extractLastCalledNumber(data.notes) : '';
                 callButton.href = `tel:${sanitizePhoneNumber(lastCalledNumber || selectedPhoneNumber || data.phone)}`;
+                updateProgressBar(); // Add this line
             } else {
                 currentNumber.textContent = 'No number selected';
                 calledTag.style.display = 'none';
@@ -372,13 +438,14 @@
         });
     
         nextButton.addEventListener('click', () => {
-            if (currentIndex < csvData.length - 1) {
+            if (currentIndex < csvData.length - 1 && remainingTime <= 0) {
                 currentIndex++;
                 showNumber();
             }
         });
     
-        callButton.addEventListener('click', () => {
+        callButton.addEventListener('click', (event) => {
+            event.preventDefault(); // Prevent the default action
             const data = csvData[currentIndex];
             if (data) {
                 data.called = 'Yes';
@@ -389,11 +456,19 @@
                 data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
 
                 notesInput.value = data.notes;
-                callButton.href = `tel:${sanitizePhoneNumber(calledNumber)}`;
                 
                 saveNotes(data.phone, data.notes);
                 
                 showNumber();
+                updateProgressBar();
+
+                // Start the timer
+                startTimer();
+
+                // Perform the actual call after a short delay
+                setTimeout(() => {
+                    window.location.href = `tel:${sanitizePhoneNumber(calledNumber)}`;
+                }, 100);
             }
         });
     
@@ -418,6 +493,7 @@
                       if (result.status === 'success') {
                           showToast('Notes saved successfully', 'success');
                           updateAdditionalInfo(data);
+                          updateProgressBar(); // Add this line
                       } else {
                           showToast('Failed to save notes', 'error');
                       }
@@ -445,15 +521,30 @@
                 .then(response => response.json())
                 .then(data => {
                     csvData = data.data;
-                    currentIndex = 0;
+                    currentIndex = findFirstUncalledIndex(csvData);
                     showNumber();
+                    updateProgressBar();
                 });
+        }
+    
+        function findFirstUncalledIndex(data) {
+            const index = data.findIndex(entry => entry.called !== 'Yes');
+            return index !== -1 ? index : 0; // If all are called, start from the beginning
         }
     
         function showToast(message, type = 'error') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
+            switch(type) {
+                case 'success':
+                    toast.style.backgroundColor = '#4CAF50';
+                    break;
+                case 'info':
+                    toast.style.backgroundColor = '#2196F3';
+                    break;
+                default:
+                    toast.style.backgroundColor = '#f44336';
+            }
             toast.style.display = 'block';
             setTimeout(() => {
                 toast.style.display = 'none';
@@ -468,6 +559,83 @@
                 <p><strong>Called:</strong> ${data.called === 'Yes' ? 'Yes' : 'No'}</p>
                 <p><strong>Previous Notes:</strong> ${data.notes || 'No notes'}</p>
             `;
+        }
+    
+        function updateProgressBar() {
+            const totalEntries = csvData.length;
+            const calledEntries = csvData.filter(entry => entry.called === 'Yes').length;
+            const percentage = (calledEntries / totalEntries) * 100;
+
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${calledEntries} / ${totalEntries} called (${percentage.toFixed(1)}%)`;
+        }
+    
+        function saveNotes(phone, notes) {
+            fetch('/user-dashboard/api/update_csv/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': Cookies.get('csrftoken')
+                },
+                body: JSON.stringify({
+                    filename: currentCSV,
+                    phone: phone,
+                    notes: notes
+                })
+            }).then(response => response.json())
+              .then(result => {
+                  if (result.status === 'success') {
+                      showToast('Notes saved successfully', 'success');
+                      updateProgressBar(); // Add this line
+                  } else {
+                      showToast('Failed to save notes', 'error');
+                  }
+              });
+        }
+    
+        // Add this function for logout
+        function logout() {
+            fetch('/logout/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Delete all cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                });
+
+                console.log("Cookies deleted");
+                
+                // Redirect to login page
+                window.location.href = '/';
+            })
+            .catch(error => {
+                console.error('Error logging out:', error);
+                showToast('Error logging out. Please try again.', 'error');
+            });
+        }
+
+        // Add event listener for logout button
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+    
+        function startTimer() {
+            remainingTime = 10; // 10 seconds
+            updateButtons();
+
+            clearInterval(timerInterval); // Clear any existing interval
+            timerInterval = setInterval(() => {
+                remainingTime--;
+                updateButtons();
+
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                }
+            }, 1000);
         }
     
         // Initialize
