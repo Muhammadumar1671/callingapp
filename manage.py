@@ -2,10 +2,11 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-
+import multiprocessing
 
 def main():
     """Run administrative tasks."""
+    multiprocessing.set_start_method('spawn', force=True)
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'CallingApp.settings')
     try:
         from django.core.management import execute_from_command_line

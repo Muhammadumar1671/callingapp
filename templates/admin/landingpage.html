@@ -4,8 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin User PDF Manager</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Tailwind-inspired custom CSS */
+        :root {
+            --color-gray-100: #f3f4f6;
+            --color-gray-200: #e5e7eb;
+            --color-gray-300: #d1d5db;
+            --color-gray-400: #9ca3af;
+            --color-gray-500: #6b7280;
+            --color-gray-600: #4b5563;
+            --color-gray-700: #374151;
+            --color-gray-800: #1f2937;
+            --color-gray-900: #111827;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,204 +25,287 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background-color: #fff;
-            color: #000;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--color-gray-100);
+            color: var(--color-gray-900);
+            line-height: 1.5;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 1rem;
         }
 
-        h1, h2 {
+        .navbar {
+            background-color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1rem 0;
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
             text-align: center;
-            color: #000;
-            margin-bottom: 1.5rem;
+            white-space: nowrap;
+            vertical-align: middle;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .btn-primary {
+            color: white;
+            background-color: var(--color-gray-900);
+            border-color: var(--color-gray-900);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-gray-800);
+            border-color: var(--color-gray-800);
+        }
+
+        .btn-danger {
+            color: white;
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
         }
 
         .admin-panel {
             display: flex;
-            gap: 2rem;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
         }
 
-        .user-list, .pdf-upload, .document-list {
+        .panel {
             flex: 1;
+            min-width: 300px;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            overflow: hidden;
         }
 
-        ul {
+        .panel-header {
+            padding: 1rem;
+            background-color: var(--color-gray-100);
+            border-bottom: 1px solid var(--color-gray-200);
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .panel-body {
+            padding: 1rem;
+        }
+
+        .list {
             list-style-type: none;
             max-height: 300px;
             overflow-y: auto;
         }
 
-        li {
-            padding: 0.5rem;
+        .list-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--color-gray-200);
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .list-item:hover {
+            background-color: var(--color-gray-100);
+        }
+
+        .list-item.selected {
+            background-color: var(--color-gray-200);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
             margin-bottom: 0.5rem;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+            font-weight: 500;
         }
 
-        li:hover {
-            background-color: #d0d7dc;
-        }
-
-        li.selected {
-            background-color: #000;
-            color: white;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .file-upload-label {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background-color: #000;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .file-upload-label:hover {
-            background-color: #333;
-        }
-
-        #uploadButton {
+        .form-control {
             display: block;
             width: 100%;
-            padding: 0.75rem;
-            margin-top: 1rem;
-            background-color: #000;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            padding: 0.5rem;
             font-size: 1rem;
-            transition: background-color 0.3s ease;
+            line-height: 1.5;
+            color: var(--color-gray-700);
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--color-gray-300);
+            border-radius: 0.25rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
         }
 
-        #uploadButton:hover {
-            background-color: #333;
+        .form-control:focus {
+            border-color: var(--color-gray-500);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
 
-        #uploadButton:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        #message {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        /* Add these new styles */
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #dc3545;
-            cursor: pointer;
-            padding: 5px;
-            margin-left: 10px;
-        }
-
-        .delete-btn:hover {
-            color: #c82333;
-        }
-
-        /* Add these new styles for the toast and logout button */
         .toast {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #f44336;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.25rem;
             color: white;
-            padding: 15px;
-            border-radius: 5px;
-            display: none;
+            background-color: var(--color-gray-700);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
             z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.15s linear;
         }
 
-        .logout-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background-color: #000;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
+        .toast.show {
+            opacity: 1;
         }
 
-        .logout-btn:hover {
-            background-color: #333;
+        .toast-success {
+            background-color: #28a745;
+        }
+
+        .toast-error {
+            background-color: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .admin-panel {
+                flex-direction: column;
+            }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        
+        .alert-info {
+            background-color: #cce5ff;
+            border: 1px solid #b8daff;
+            color: #004085;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Admin User PDF Manager</h1>
-        <button id="logoutBtn" class="logout-btn">Logout</button>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <h1>Admin User PDF Manager</h1>
+            <button id="logoutBtn" class="btn btn-primary">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container">
         <div class="admin-panel">
-            <div class="user-list">
-                <h2>Select Users</h2>
-                <ul id="userList">
-                    <!-- User list will be populated dynamically -->
-                </ul>
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Select Users</h2>
+                </div>
+                <div class="panel-body">
+                    <ul id="userList" class="list"></ul>
+                </div>
             </div>
-            <div class="pdf-upload">
-                <h2>Upload Document</h2>
-                <input type="file" id="documentFile" accept=".csv" />
-                <label for="documentFile" class="file-upload-label">Choose CSV File</label>
-                <button id="uploadButton" disabled>Upload Document</button>
-                <div id="message"></div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Upload Document</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label for="documentFile" class="form-label">Choose CSV File</label>
+                        <input type="file" id="documentFile" accept=".csv" class="form-control">
+                    </div>
+                    <button id="uploadButton" class="btn btn-primary" disabled>Upload Document</button>
+                </div>
             </div>
-            <div class="document-list">
-                <h2>User Documents</h2>
-                <ul id="documentList">
-                    <!-- Document list will be populated dynamically -->
-                </ul>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">User Documents</h2>
+                </div>
+                <div class="panel-body">
+                    <ul id="documentList" class="list"></ul>
+                </div>
             </div>
         </div>
-    </div>
+
+        <div class="panel" style="margin-top: 2rem;">
+            <div class="panel-header">
+                <h2 class="panel-title">Scraper Settings</h2>
+            </div>
+            <div class="panel-body">
+                <div id="scraperRunning" style="display: none;">
+                    <div class="alert alert-info">
+                        Scraper is currently running...
+                        <div class="loader"></div>
+                    </div>
+                </div>
+                <div id="scraperControls">
+                    <div class="form-group">
+                        <label for="categories" class="form-label">Categories (comma-separated)</label>
+                        <input type="text" id="categories" class="form-control" placeholder="Enter categories">
+                    </div>
+                    <div class="form-group">
+                        <label for="states" class="form-label">States (comma-separated)</label>
+                        <input type="text" id="states" class="form-control" placeholder="Enter states">
+                    </div>
+                    <button id="startScraper" class="btn btn-primary">Start Scraper</button>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <div id="toast" class="toast"></div>
 
     <script>
-        const userList = document.getElementById('userList');
-        const documentFile = document.getElementById('documentFile');
-        const uploadButton = document.getElementById('uploadButton');
-        const message = document.getElementById('message');
-        const documentList = document.getElementById('documentList');
-    
-        let selectedUsers = [];
-    
-        // Function to get CSRF token from cookie
+        // Utility functions
         function getCSRFToken() {
             const name = 'csrftoken=';
             const decodedCookie = decodeURIComponent(document.cookie);
@@ -223,94 +318,93 @@
             }
             return null;
         }
-    
-        // Fetch users from the backend
-        fetch('/admin-dashboard/get-users/', {
-            method: 'GET',
-            headers: {
-                'X-CSRFToken': getCSRFToken(),
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => response.json())
-        .then(data => {
-            userList.innerHTML = '';
-            data.users.forEach(user => {
-                console.log(user);
-                const li = document.createElement('li');
-                li.textContent = user.username;
-                li.dataset.userId = user.username; // Use 'username' as the identifier
-                userList.appendChild(li);
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show toast-${type}`;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        // DOM elements
+        const userList = document.getElementById('userList');
+        const documentFile = document.getElementById('documentFile');
+        const uploadButton = document.getElementById('uploadButton');
+        const documentList = document.getElementById('documentList');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const startScraperBtn = document.getElementById('startScraper');
+
+        // State
+        let selectedUsers = [];
+        let scraperCheckInterval;
+
+        // Event listeners
+        userList.addEventListener('click', handleUserSelect);
+        documentFile.addEventListener('change', handleFileChange);
+        uploadButton.addEventListener('click', handleUpload);
+        logoutBtn.addEventListener('click', handleLogout);
+        startScraperBtn.addEventListener('click', handleStartScraper);
+
+        // Fetch users on page load
+        fetchUsers();
+
+        // Functions
+        function fetchUsers() {
+            fetch('/admin-dashboard/get-users/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                userList.innerHTML = '';
+                data.users.forEach(user => {
+                    const li = document.createElement('li');
+                    li.textContent = user.username;
+                    li.dataset.userId = user.username;
+                    li.className = 'list-item';
+                    userList.appendChild(li);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching users:', error);
+                showToast('Error loading users. Please try again.', 'error');
             });
-        })
-        .catch(error => {
-            console.error('Error fetching users:', error);
-            message.textContent = 'Error loading users. Please try again.';
-            message.className = 'error';
-        });
-    
-        // Event listener for selecting users
-        userList.addEventListener('click', (e) => {
-            if ( e.target.tagName === 'LI') {
+        }
+
+        function handleUserSelect(e) {
+            if (e.target.tagName === 'LI') {
                 e.target.classList.toggle('selected');
                 updateSelectedUsers();
-    
-                // Fetch the documents for the selected user (only if one user is selected)
                 if (selectedUsers.length === 1) {
-                    console.log('Fetching documents for user:', selectedUsers[0]);
                     fetchUserDocuments();
                 } else {
-                    documentList.innerHTML = '<li>Select one user to view their documents.</li>';
+                    documentList.innerHTML = '<li class="list-item">Select one user to view their documents.</li>';
                 }
             }
-        });
-    
-        documentFile.addEventListener('change', () => {
-            updateUploadButton();
-            updateSelectedFileName();
-        });
-    
-        uploadButton.addEventListener('click', uploadDocument);
-    
+        }
+
         function updateSelectedUsers() {
             selectedUsers = Array.from(userList.querySelectorAll('.selected')).map(li => li.dataset.userId);
-            console.log('Selected users:', selectedUsers);
-            updateUploadButton();
-        }
-    
-        function updateUploadButton() {
             uploadButton.disabled = !documentFile.files.length || selectedUsers.length !== 1;
         }
-    
-        function updateSelectedFileName() {
-            const fileNameDisplay = document.createElement('p');
-            fileNameDisplay.id = 'selectedFileName';
-            fileNameDisplay.style.marginTop = '0.5rem';
-    
-            if (documentFile.files.length > 0) {
-                fileNameDisplay.textContent = `Selected file: ${documentFile.files[0].name}`;
-            } else {
-                fileNameDisplay.textContent = 'No file selected';
-            }
-    
-            const existingFileNameDisplay = document.getElementById('selectedFileName');
-            if (existingFileNameDisplay) {
-                existingFileNameDisplay.replaceWith(fileNameDisplay);
-            } else {
-                document.querySelector('.pdf-upload').insertBefore(fileNameDisplay, uploadButton);
-            }
+
+        function handleFileChange() {
+            updateSelectedUsers();
         }
-    
-        function uploadDocument() {
+
+        function handleUpload() {
             const file = documentFile.files[0];
             if (file && selectedUsers.length === 1) {
                 const formData = new FormData();
                 formData.append('document', file);
-                formData.append('username', selectedUsers[0]); // Pass the selected user's username
-    
-                console.log('Uploading document for user:', selectedUsers[0]);
-    
+                formData.append('username', selectedUsers[0]);
+
                 fetch('/admin-dashboard/add-document/', {
                     method: 'POST',
                     headers: {
@@ -326,22 +420,19 @@
                     }
                     showToast(data.message);
                     documentFile.value = '';
-                    updateUploadButton();
-                    updateSelectedFileName();
-                    fetchUserDocuments(); // Refresh the document list after upload
+                    updateSelectedUsers();
+                    fetchUserDocuments();
                 })
                 .catch(error => {
                     console.error('Error uploading document:', error);
-                    showToast(error.message || 'Error uploading document. Please try again.', true);
+                    showToast(error.message || 'Error uploading document. Please try again.', 'error');
                 });
             }
         }
-    
+
         function fetchUserDocuments() {
             if (selectedUsers.length === 1) {
                 const username = selectedUsers[0];
-                console.log('Fetching documents for user:', username);
-    
                 fetch(`/admin-dashboard/see-document/?username=${encodeURIComponent(username)}`, {
                     method: 'GET',
                     headers: {
@@ -352,39 +443,31 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Received document data:', data);
                     documentList.innerHTML = '';
                     if (data.documents && data.documents.length > 0) {
                         data.documents.forEach(docName => {
                             const li = document.createElement('li');
-                            li.textContent = docName;
-    
-                            const deleteButton = document.createElement('button');
-                            deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                            deleteButton.className = 'delete-btn';
-                            deleteButton.title = 'Delete document';
-                            deleteButton.onclick = () => deleteDocument(docName);
-    
-                            li.appendChild(deleteButton);
+                            li.className = 'list-item';
+                            li.innerHTML = `
+                                ${docName}
+                                <button class="btn btn-danger btn-sm float-right" onclick="deleteDocument('${docName}')">Delete</button>
+                            `;
                             documentList.appendChild(li);
                         });
                     } else {
-                        const li = document.createElement('li');
-                        li.textContent = 'No documents found for this user.';
-                        documentList.appendChild(li);
+                        documentList.innerHTML = '<li class="list-item">No documents found for this user.</li>';
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching user documents:', error);
-                    message.textContent = 'Error loading documents. Please try again.';
-                    message.className = 'error';
+                    showToast('Error loading documents. Please try again.', 'error');
                 });
             }
         }
-    
+
         function deleteDocument(documentName) {
             if (selectedUsers.length === 1) {
-                fetch(`/admin-dashboard/delete-document/`, {
+                fetch('/admin-dashboard/delete-document/', {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
@@ -392,7 +475,7 @@
                     },
                     body: JSON.stringify({
                         document_name: documentName,
-                        username: selectedUsers[0] // Use the selected user's username
+                        username: selectedUsers[0]
                     }),
                     credentials: 'same-origin'
                 })
@@ -402,26 +485,16 @@
                         throw new Error(data.error);
                     }
                     showToast(data.message);
-                    fetchUserDocuments(); // Refresh the document list after deletion
+                    fetchUserDocuments();
                 })
                 .catch(error => {
                     console.error('Error deleting document:', error);
-                    showToast(error.message || 'Error deleting document. Please try again.', true);
+                    showToast(error.message || 'Error deleting document. Please try again.', 'error');
                 });
             }
         }
-    
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.backgroundColor = isError ? '#f44336' : '#4CAF50';
-            toast.style.display = 'block';
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 3000);
-        }
-    
-        function logout() {
+
+        function handleLogout() {
             fetch('/logout/', {
                 method: 'GET',
                 headers: {
@@ -431,25 +504,79 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Delete all cookies
                 document.cookie.split(";").forEach(function(c) { 
-                    document.cookie = ""
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
                 });
-    
-                console.log("Cookies deleted");
-                
-                // Redirect to login page
                 window.location.href = '/';
             })
             .catch(error => {
                 console.error('Error logging out:', error);
-                showToast('Error logging out. Please try again.', true);
+                showToast('Error logging out. Please try again.', 'error');
             });
         }
-    
-        // Add event listener for logout button
-        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        function handleStartScraper() {
+            const categories = document.getElementById('categories').value.split(',').map(item => item.trim());
+            const states = document.getElementById('states').value.split(',').map(item => item.trim());
+
+            if (categories.length === 0 || states.length === 0) {
+                showToast('Please enter both categories and states', 'error');
+                return;
+            }
+
+            fetch('/admin-dashboard/run-scrapper/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                body: JSON.stringify({ categories, states }),
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message);
+                checkScraperStatus(); // Check status immediately after starting
+            })
+            .catch(error => {
+                showToast('Error starting scraper: ' + error.message, 'error');
+            });
+        }
+
+        // Add this to your page load operations
+        document.addEventListener('DOMContentLoaded', function() {
+            checkScraperStatus();
+            // Check status every 10 seconds
+            scraperCheckInterval = setInterval(checkScraperStatus, 10000);
+        });
+
+        function checkScraperStatus() {
+            fetch('/admin-dashboard/get-scrapper-status/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const scraperRunning = document.getElementById('scraperRunning');
+                const scraperControls = document.getElementById('scraperControls');
+                
+                if (data.message === 'running') {
+                    scraperRunning.style.display = 'block';
+                    scraperControls.style.display = 'none';
+                } else {
+                    scraperRunning.style.display = 'none';
+                    scraperControls.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking scraper status:', error);
+                showToast('Error checking scraper status', 'error');
+            });
+        }
     </script>
-    
 </body>
 </html>

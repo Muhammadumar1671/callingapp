@@ -31,6 +31,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'authorization',
     'admin_dashbaord',
+    'celery',
+    'django_celery_beat',
+    'django_celery_results',
 
 ]
 
@@ -135,3 +138,18 @@ STATICFILES_DIRS = [
 ]
 
 
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+
+CELERY_BEAT_SCHEDULE = {
+    'Email Reminder': {
+        'task': 'admin_dashbaord.tasks.run_scrapper',
+        'schedule': 5 
+    },
+}

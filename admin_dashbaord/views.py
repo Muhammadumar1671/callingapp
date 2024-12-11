@@ -8,6 +8,8 @@ from authorization.serializer import CustomUserSerializer
 from rest_framework.response import Response
 from rest_framework import status
 import os
+from .models import ScrapperLoader
+from .tasks import run_scrapper as run_scrapper_task
 
 
 @api_view(['GET'])
@@ -114,3 +116,29 @@ def delete_document(request):
             return Response({'error': f'Failed to delete document: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return Response({'error': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+
+from redis import Redis
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def run_scrapper(request):
+    states = request.data.get('states', [])
+    categories = request.data.get('categories', [])
+    print(states, categories)
+
+    
+    # Ensure states and categories are lists
+    if not isinstance(states, list) or not isinstance(categories, list):
+        return Response({'error': 'States and categories must be lists.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    run_scrapper_task.delay(states, categories)
+    return Response({'message': 'Scrapper started'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def get_scrapper_status(request):
+    scrapper = ScrapperLoader.objects.first()
+    if scrapper:
+        return Response({'message': scrapper.scrapper_status}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': 'Scrapper not found'}, status=status.HTTP_404_NOT_FOUND)
