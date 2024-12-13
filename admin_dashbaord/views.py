@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.http import HttpResponseForbidden, HttpResponseServerError
+from django.http import HttpResponseForbidden, HttpResponseServerError, FileResponse
 from authorization.models import User
 from authorization.serializer import CustomUserSerializer
 from rest_framework.response import Response
@@ -10,6 +10,11 @@ from rest_framework import status
 import os
 from .models import ScrapperLoader
 from .tasks import run_scrapper as run_scrapper_task
+from celery.result import AsyncResult
+from django.conf import settings
+import pandas as pd
+import zipfile
+from datetime import datetime
 
 
 @api_view(['GET'])
@@ -33,12 +38,6 @@ def get_all_users(request):
     serializer = CustomUserSerializer(users, many=True)
     return Response({'users': serializer.data}, status=status.HTTP_200_OK)
 
-
-
-
-import os
-from django.conf import settings
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_document(request):
@@ -53,25 +52,37 @@ def add_document(request):
     
     user = get_object_or_404(User, username=username)
     
-    # Define the base directory and user-specific directory
-    user_directory = os.path.join(settings.MEDIA_ROOT, 'documents', str(user.username))
-    
-    # Create the directory if it doesn't exist
-    os.makedirs(user_directory, exist_ok=True)
-    
-    # Save the document in the user's directory
-    document_path = os.path.join(user_directory, document.name)
-    
     try:
-        with open(document_path, 'wb+') as destination:
-            for chunk in document.chunks():
-                destination.write(chunk)
+        # Read the content and process it line by line
+        content = document.read().decode('utf-8').splitlines()
+        processed_lines = []
+        
+        for line in content:
+            parts = line.split(',', 4)  # Split into 5 parts
+            
+            # Fix empty or [] in first column
+            if not parts[0] or parts[0] == '[]':
+                parts[0] = '["123456"]'
+                
+            # Fix category format in last column
+            if parts[-1].startswith('[') and parts[-1].endswith(']'):
+                parts[-1] = parts[-1].strip('[]\'\" ')
+                
+            processed_lines.append(','.join(parts))
+        
+        # Define the base directory and user-specific directory
+        user_directory = os.path.join(settings.MEDIA_ROOT, 'documents', str(user.username))
+        os.makedirs(user_directory, exist_ok=True)
+        
+        # Save the modified content
+        document_path = os.path.join(user_directory, document.name)
+        with open(document_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(processed_lines))
+        
+        return Response({'message': 'Document uploaded and formatted successfully'}, status=status.HTTP_201_CREATED)
+        
     except Exception as e:
-        return Response({'error': f'Failed to save document: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    return Response({'message': 'Document uploaded successfully'}, status=status.HTTP_201_CREATED)
-
-
+        return Response({'error': f'Failed to process document: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -135,10 +146,146 @@ def run_scrapper(request):
 
 
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_scrapper_status(request):
     scrapper = ScrapperLoader.objects.first()
     if scrapper:
         return Response({'message': scrapper.scrapper_status}, status=status.HTTP_200_OK)
     else:
         return Response({'message': 'Scrapper not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_scrapper(request):
+    try:
+        # Get the running scrapper instance
+        scrapper = ScrapperLoader.objects.first()
+        if not scrapper:
+            return Response({'message': 'No active scrapper found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Revoke the Celery task
+        if scrapper.task_id:
+            task = AsyncResult(scrapper.task_id)
+            task.revoke(terminate=True)
+            scrapper.scrapper_status = "Cancelled"
+            scrapper.save()
+            scrapper.delete()
+            return Response({'message': 'Scrapper cancelled successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': 'No task ID found'}, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        return Response({'error': f'Failed to cancel scrapper: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_scrapped_files(request):
+    files = os.listdir(os.path.join(settings.MEDIA_ROOT, 'scrappedfiles'))
+    return Response({'files': files}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_scrapped_file(request, filename):
+    try:
+        file_path = os.path.join(settings.MEDIA_ROOT, 'scrappedfiles', filename)
+        print(file_path)
+        if os.path.exists(file_path):
+            response = FileResponse(open(file_path, 'rb'))
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            # Delete the file after sending it
+            os.remove(file_path)
+            
+            return response
+        else:
+            return Response(
+                {'error': 'File not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    except Exception as e:
+        return Response(
+            {'error': f'Error downloading file: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+def ensure_scrappedfiles_directory():
+    scrapped_files_dir = os.path.join(settings.MEDIA_ROOT, 'scrappedfiles')
+    os.makedirs(scrapped_files_dir, exist_ok=True)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def split_csv(request):
+    if request.user.role != 'admin':
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        csv_file = request.FILES.get('csv_file')
+        row_distribution = request.POST.get('row_distribution', '')
+        
+        if not csv_file:
+            return Response({'error': 'No CSV file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not csv_file.name.endswith('.csv'):
+            return Response({'error': 'File must be a CSV'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Parse row distribution
+        try:
+            rows_per_file = [int(x) for x in row_distribution.split(',') if x.strip()]
+        except ValueError:
+            return Response({'error': 'Invalid row distribution format'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Read the CSV file and drop the first column
+        df = pd.read_csv(csv_file)
+        total_rows = len(df)
+        
+        # Validate if we have enough rows
+        if sum(rows_per_file) > total_rows:
+            return Response({
+                'error': f'Not enough rows in CSV. File has {total_rows} rows, but distribution requires {sum(rows_per_file)} rows'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create user-specific directory for split files
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        user_dir = os.path.join(settings.MEDIA_ROOT, 'documents', str(request.user.username), 'split_files', timestamp)
+        os.makedirs(user_dir, exist_ok=True)
+        
+        # Split the dataframe according to the distribution
+        split_files = []
+        current_row = 0
+        
+        for i, num_rows in enumerate(rows_per_file):
+            # Extract rows for this file
+            file_df = df.iloc[current_row:current_row + num_rows].copy()
+            current_row += num_rows
+            
+            # Create split CSV file
+            split_filename = f'split_{i + 1}.csv'
+            split_path = os.path.join(user_dir, split_filename)
+            file_df.to_csv(split_path, index=False)
+            split_files.append(split_path)
+        
+        # Create ZIP file
+        zip_filename = f'split_files_{timestamp}.zip'
+        zip_path = os.path.join(user_dir, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            for file in split_files:
+                zipf.write(file, os.path.basename(file))
+        
+        # Clean up individual split files
+        for file in split_files:
+            os.remove(file)
+        
+        # Return the ZIP file
+        response = FileResponse(open(zip_path, 'rb'))
+        response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+        
+        # Clean up zip file after sending
+        os.remove(zip_path)
+        os.rmdir(user_dir)
+        
+        return response
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

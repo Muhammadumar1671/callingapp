@@ -13,38 +13,57 @@ import requests
 import html
 from urllib3.exceptions import IncompleteRead
 from typing import List, Tuple, Optional
+import random
+import os
 
 class BusinessScraper:
     def __init__(self):
         self.driver = self._setup_driver()
 
     def _setup_driver(self) -> webdriver.Chrome:
-        options = webdriver.ChromeOptions()
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--hide-scrollbars")
-        options.add_argument("--no-sandbox")
-        options.add_argument('--headless')
-        options.add_argument("--ignore-certificate-errors")
-        options.add_argument("--disable-session-crashed-bubble")
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument("--start-maximized")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-webgl")
-        options.add_argument("--disable-gpu")
-        
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=options)
+        try:
+            options = webdriver.ChromeOptions()
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--hide-scrollbars")
+            options.add_argument("--no-sandbox")
+            options.add_argument('--headless=new')
+            options.add_argument("--ignore-certificate-errors")
+            options.add_argument("--disable-session-crashed-bubble")
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument("--start-maximized")
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            options.add_experimental_option('useAutomationExtension', False)
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_argument("--disable-webgl")
+            
+            options.add_argument("--disable-notifications")
+            options.add_argument("--disable-infobars")
+            
+            # Remove cache_valid_range parameter
+            service = Service(ChromeDriverManager().install())
+            
+            driver = webdriver.Chrome(
+                service=service,
+                options=options
+            )
+            return driver
+        except Exception as e:
+            print(f"Detailed error while setting up Chrome driver: {str(e)}")
+            raise
+    
 
-    def scrape_businesses(self, category: str, state: str, output_file: str = 'business_links_and_info.csv') -> List[List]:
+    def scrape_businesses(self, category: str, state: str, output_file: str = None) -> List[List]:
         """
         Main function to scrape business information for a given category and state
         Returns list of [phone_numbers, name, address, website, category]
         """
         try:
             print(f"Scraping for {category} in {state}")
+            # Generate random 7-digit number and create filename if not provided
+            if output_file is None:
+                random_number = ''.join([str(random.randint(0, 9)) for _ in range(7)])
+                output_file = f'scrappedfiles/business_links_and_info{random_number}.csv'
             business_links = self._scrape_business_links(category, state)
             data = self._process_links(business_links, category)
             self._save_to_csv(output_file, data)
@@ -172,6 +191,9 @@ class BusinessScraper:
 
     def _save_to_csv(self, filename: str, data: List[List]):
         try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
             with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerows(data)

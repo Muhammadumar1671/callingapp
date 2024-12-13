@@ -285,6 +285,7 @@
                     <div class="alert alert-info">
                         Scraper is currently running...
                         <div class="loader"></div>
+                        <button id="cancelScraper" class="btn btn-danger" style="margin-left: 10px;">Cancel Scraper</button>
                     </div>
                 </div>
                 <div id="scraperControls">
@@ -298,6 +299,41 @@
                     </div>
                     <button id="startScraper" class="btn btn-primary">Start Scraper</button>
                 </div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top: 2rem;">
+            <div class="panel-header">
+                <h2 class="panel-title">Scrapped Files</h2>
+            </div>
+            <div class="panel-body">
+                <ul id="scrappedFilesList" class="list"></ul>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Split CSV File</h2>
+            </div>
+            <div class="panel-body">
+                <form id="splitCsvForm" onsubmit="handleSplitCsv(event)">
+                    <div class="form-group">
+                        <label for="csvFile" class="form-label">CSV File</label>
+                        <input type="file" id="csvFile" accept=".csv" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="rowDistribution" class="form-label">Row Distribution (comma-separated)</label>
+                        <input type="text" 
+                               id="rowDistribution" 
+                               class="form-control" 
+                               placeholder="e.g., 10,5,5" 
+                               pattern="^\d+(?:,\d+)*$"
+                               title="Enter numbers separated by commas"
+                               required>
+                        <small class="form-text text-muted">Enter how many rows you want in each file, separated by commas. Example: 10,5,5 will create 3 files with 10, 5, and 5 rows respectively.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Split CSV</button>
+                </form>
             </div>
         </div>
     </main>
@@ -335,6 +371,7 @@
         const documentList = document.getElementById('documentList');
         const logoutBtn = document.getElementById('logoutBtn');
         const startScraperBtn = document.getElementById('startScraper');
+        const scrappedFilesList = document.getElementById('scrappedFilesList');
 
         // State
         let selectedUsers = [];
@@ -346,6 +383,7 @@
         uploadButton.addEventListener('click', handleUpload);
         logoutBtn.addEventListener('click', handleLogout);
         startScraperBtn.addEventListener('click', handleStartScraper);
+        document.getElementById('cancelScraper').addEventListener('click', handleCancelScraper);
 
         // Fetch users on page load
         fetchUsers();
@@ -548,6 +586,7 @@
             checkScraperStatus();
             // Check status every 10 seconds
             scraperCheckInterval = setInterval(checkScraperStatus, 10000);
+            fetchScrappedFiles();
         });
 
         function checkScraperStatus() {
@@ -575,6 +614,134 @@
             .catch(error => {
                 console.error('Error checking scraper status:', error);
                 showToast('Error checking scraper status', 'error');
+            });
+        }
+
+        function handleCancelScraper() {
+            fetch('/admin-dashboard/cancel-scrapper/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message);
+                checkScraperStatus(); // Check status immediately after cancelling
+            })
+            .catch(error => {
+                console.error('Error cancelling scraper:', error);
+                showToast('Error cancelling scraper. Please try again.', 'error');
+            });
+        }
+
+        function fetchScrappedFiles() {
+            fetch('/admin-dashboard/get-scrapped-files/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                scrappedFilesList.innerHTML = '';
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(fileName => {
+                        const li = document.createElement('li');
+                        li.className = 'list-item';
+                        li.innerHTML = `
+                            ${fileName}
+                            <button class="btn btn-primary btn-sm float-right" 
+                                    onclick="downloadScrappedFile('${fileName}')" 
+                                    style="margin-left: 10px;">
+                                Download
+                            </button>
+                        `;
+                        scrappedFilesList.appendChild(li);
+                    });
+                } else {
+                    scrappedFilesList.innerHTML = '<li class="list-item">No scrapped files available.</li>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching scrapped files:', error);
+                showToast('Error loading scrapped files. Please try again.', 'error');
+            });
+        }
+
+        function downloadScrappedFile(fileName) {
+            fetch(`/admin-dashboard/download-scrapped-file/${encodeURIComponent(fileName)}/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Refresh the file list after download
+                fetchScrappedFiles();
+                showToast('File downloaded successfully');
+            })
+            .catch(error => {
+                console.error('Error downloading file:', error);
+                showToast('Error downloading file. Please try again.', 'error');
+            });
+        }
+
+        function handleSplitCsv(event) {
+            event.preventDefault();
+            
+            const formData = new FormData();
+            const csvFile = document.getElementById('csvFile').files[0];
+            const rowDistribution = document.getElementById('rowDistribution').value;
+            
+            formData.append('csv_file', csvFile);
+            formData.append('row_distribution', rowDistribution);
+            
+            fetch('/admin-dashboard/split-csv/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Failed to split CSV');
+                });
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'split_files.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showToast('CSV split successfully');
+            })
+            .catch(error => {
+                console.error('Error splitting CSV:', error);
+                showToast(error.message || 'Error splitting CSV', 'error');
             });
         }
     </script>
