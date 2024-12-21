@@ -1,12 +1,13 @@
-phone,name,address,website,services
-12162426464,Pizza Whirl,1822 W 25th St Cleveland OH 44113 United States,yes,['pizza']
-16142688181,Ohio State Pizza & Deli,325 E Hudson St Columbus OH 43202 United States,yes,['pizza']
-16148132219,OH Pizza & Wings,18 Dillmont Dr Columbus OH 43235 United States,yes,['pizza']
-13306776767,Pizza Hut,4118 OH-43 Kent OH 44240 United States,yes,['pizza']
-16149449550,Halal pizza cafe,3931 Cleveland Ave Columbus OH 43224 United States,yes,['pizza']
-15137250111,Pizza Hut,440 Ohio Pike Cincinnati OH 45255 United States,yes,['pizza']
-17403639990,Mohio Pizza Co.,23 N Sandusky St Delaware OH 43015 United States,yes,['pizza']
-13304822623,Pizza Hut,300 OH-14 Columbiana OH 44408 United States,yes,['pizza']
-16149968006,OH Pizza & Wings,1050 Hilliard Rome Rd Columbus OH 43228 United States,yes,['pizza']
-14196592628,The Pizzeria,112 N High St Columbus Grove OH 45830 United States,no,['pizza']
-14407744444,Pizza Hut,14920 OH-58 Oberlin OH 44074 United States,yes,['pizza']
+phone,name,address,website,services,called,notes
+16142688181,Ohio State Pizza & Deli,325 E Hudson St Columbus OH 43202 United States,yes,['pizza'],Yes,"[12/21/2024, 9:16:49 PM] Call Outcome: Client was interested and requested follow-up (Follow-up scheduled via Calendly)"
+16148132219,OH Pizza & Wings,18 Dillmont Dr Columbus OH 43235 United States,yes,['pizza'],Yes,"Called 16148132219 on 12/21/2024, 3:41:35 PM"
+13306776767,Pizza Hut,4118 OH-43 Kent OH 44240 United States,yes,['pizza'],Yes,"Called 13306776767 on 12/21/2024, 3:42:14 PM"
+16149449550,Halal pizza cafe,3931 Cleveland Ave Columbus OH 43224 United States,yes,['pizza'],Yes,"[12/21/2024, 3:45:50 PM] Call Attempt - No Response"
+15137250111,Pizza Hut,440 Ohio Pike Cincinnati OH 45255 United States,yes,['pizza'],Yes,"[12/21/2024, 3:46:20 PM] Call Outcome: Client was interested and requested follow-up
+[12/21/2024, 4:06:31 PM] Call Attempt - No Response"
+17403639990,Mohio Pizza Co.,23 N Sandusky St Delaware OH 43015 United States,yes,['pizza'],Yes,"[12/21/2024, 4:08:01 PM] Call Attempt - No Response"
+13304822623,Pizza Hut,300 OH-14 Columbiana OH 44408 United States,yes,['pizza'],Yes,"[12/21/2024, 4:08:45 PM] Call Attempt - No Response
+[12/21/2024, 4:22:34 PM] Call Outcome: Client was interested and requested follow-up"
+16149968006,OH Pizza & Wings,1050 Hilliard Rome Rd Columbus OH 43228 United States,yes,['pizza'],Yes,"[12/21/2024, 8:26:52 PM] Call Outcome: Client was interested and requested follow-up"
+14196592628,The Pizzeria,112 N High St Columbus Grove OH 45830 United States,no,['pizza'],Yes,"[12/21/2024, 8:33:04 PM] Call Outcome: Client was interested and requested follow-up (Follow-up scheduled for: 12/21/2024, 8:37:00 PM)"
+14407744444,Pizza Hut,14920 OH-58 Oberlin OH 44074 United States,yes,['pizza'],Yes,"[12/21/2024, 8:38:39 PM] Call Attempt - No Response"

@@ -65,6 +65,7 @@ def login(request):
                 'redirect_url': '/admin-dashboard/'  
             }, status=status.HTTP_200_OK)
         elif user.role == 'user':
+            print('token', csrf_token)
             return Response({
                 'message': 'Login successful',
                 'csrf_token': csrf_token,

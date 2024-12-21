@@ -1,5 +1,4 @@
-phone,name,address,website,services
-12162426464,Pizza Whirl,1822 W 25th St Cleveland OH 44113 United States,yes,['pizza']
-16144787437,"Pies & Pints - Columbus, OH",Easton Town Center 4205 Weaverton Lane Columbus OH 43219 United States,no,['pizza']
-16147990500,Luna Pizza Kitchen,5380 Tuttle Crossing Blvd Dublin OH 43016 United States,yes,['pizza']
-16148524330,Giordano's,2137 Polaris Pkwy Columbus OH 43240 United States,yes,['pizza']
+phone,name,address,website,services,called,notes
+16144787437,"Pies & Pints - Columbus, OH",Easton Town Center 4205 Weaverton Lane Columbus OH 43219 United States,no,['pizza'],Yes,"[12/21/2024, 8:29:19 PM] Call Outcome: Client was interested and requested follow-up (Follow-up scheduled for: 12/17/2024, 1:29:00 PM)"
+16147990500,Luna Pizza Kitchen,5380 Tuttle Crossing Blvd Dublin OH 43016 United States,yes,['pizza'],Yes,"[12/21/2024, 8:29:54 PM] Call Attempt - No Response"
+16148524330,Giordano's,2137 Polaris Pkwy Columbus OH 43240 United States,yes,['pizza'],Yes,"[12/21/2024, 8:30:47 PM] Call Outcome: 🎉 Lead Successfully Converted!"

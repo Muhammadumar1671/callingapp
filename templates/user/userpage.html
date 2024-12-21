@@ -271,6 +271,61 @@
         .logout-btn:hover {
             background-color: var(--secondary);
         }
+
+   .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: var(--background);
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 80%;
+    max-width: 600px;
+}
+
+.close {
+    color: var(--foreground);
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#scriptContent {
+    margin: 20px 0;
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+        #scriptContent {
+            margin: 20px 0;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .response-button {
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            background-color: var(--accent);
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .response-button:hover {
+            background-color: var(--primary);
+            color: var(--background);
+        }
     </style>
 </head>
 <body>
@@ -296,8 +351,7 @@
         <a href="tel:" class="call-button" id="callButton">Call</a>
         <div class="notes-section">
             <h2>Notes</h2>
-            <textarea class="notes-input" id="notes" rows="4" placeholder="Enter notes for this number..."></textarea>
-            <button id="saveNotesButton">Save Notes</button>
+            <textarea class="notes-input" id="notes" rows="4" placeholder="Enter notes for this number..." readonly></textarea>
         </div>
         <div class="csv-section">
             <h2>Select CSV File</h2>
@@ -305,6 +359,42 @@
         </div>
     </div>
     <div id="toast" class="toast"></div>
+    <div id="scriptModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Call Script</h2>
+            <div id="scriptContent"></div>
+            <button id="proceedCall" class="call-button">Proceed with Call</button>
+        </div>
+    </div>
+    <div id="callOutcomeModal" class="modal">
+        <div class="modal-content">
+            <h2>Call Outcome</h2>
+            <p>Did the client pick up the call?</p>
+            <div class="button-container">
+                <button id="clientPickedUp" class="button call-button">Yes, Client Picked Up</button>
+                <button id="clientDidntPickUp" class="button back-button">No Response</button>
+            </div>
+            
+            <div id="responseOptions" style="display: none; margin-top: 20px;">
+                <h3>How was the client's response?</h3>
+                <div class="button-container" style="flex-direction: column; gap: 10px;">
+                    <button class="button response-button" data-response="Success">Lead Successful! 🎉</button>
+                    <button class="button response-button" data-response="Interested">Interested - Wants Follow-up</button>
+                    <button class="button response-button" data-response="NotInterested">Not Interested - Polite</button>
+                    <button class="button response-button" data-response="Rude">Not Interested - Rude</button>
+                    <button class="button response-button" data-response="CallBack">Asked to Call Back Later</button>
+                </div>
+                
+                <div id="followUpSection" style="display: none; margin-top: 20px;">
+                    <h3>Schedule Follow-up Meeting</h3>
+                    <input type="email" id="followUpEmail" placeholder="Enter client's email" style="width: 100%; margin: 10px 0; padding: 8px;">
+                    <input type="datetime-local" id="followUpDateTime" style="margin: 10px 0; padding: 8px;">
+                    <button id="confirmFollowUp" class="button call-button">Confirm Follow-up</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         const currentNumber = document.getElementById('currentNumber');
         const calledTag = document.getElementById('calledTag');
@@ -315,7 +405,6 @@
         const csvList = document.getElementById('csvList');
         const notesInput = document.getElementById('notes');
         const additionalInfo = document.getElementById('additionalInfo');
-        const saveNotesButton = document.getElementById('saveNotesButton');
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
     
@@ -409,13 +498,16 @@
             // Add 'selected' class to the clicked button
             button.classList.add('selected');
 
-            // Update the notes input with the selected phone number
+            // Update the notes automatically without save button
             const data = csvData[currentIndex];
             if (data) {
                 const currentDate = new Date().toLocaleString();
                 const newNote = `Selected ${selectedPhoneNumber} on ${currentDate}`;
                 data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
                 notesInput.value = data.notes;
+                
+                // Automatically save to server
+                updateServerNotes(data.phone, data.notes);
             }
         }
     
@@ -444,60 +536,35 @@
             }
         });
     
-        callButton.addEventListener('click', (event) => {
-            event.preventDefault(); // Prevent the default action
+        callButton.addEventListener('click', async (event) => {
+            event.preventDefault();
             const data = csvData[currentIndex];
+            
             if (data) {
-                data.called = 'Yes';
-                
-                const currentDate = new Date().toLocaleString();
+                // Get the correct phone number
                 const calledNumber = selectedPhoneNumber || data.phone.split(',')[0].trim();
-                const newNote = `Called ${calledNumber} on ${currentDate}`;
-                data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
-
-                notesInput.value = data.notes;
                 
-                saveNotes(data.phone, data.notes);
-                
-                showNumber();
-                updateProgressBar();
+                // Prepare business data for script page
+                const businessData = {
+                    name: data.name,
+                    address: data.address,
+                    phone: calledNumber,
+                    services: data.services,
+                    notes: data.notes,
+                    csrftoken: Cookies.get('csrftoken')
+                };
 
-                // Start the timer
-                startTimer();
+                // Open script page in new window
+                const scriptWindow = window.open('', '_blank');
+                scriptWindow.location.href = `/user-dashboard/script/?data=${encodeURIComponent(JSON.stringify(businessData))}`;
 
-                // Perform the actual call after a short delay
+                // Make the call after a brief delay
                 setTimeout(() => {
                     window.location.href = `tel:${sanitizePhoneNumber(calledNumber)}`;
                 }, 100);
-            }
-        });
-    
-        saveNotesButton.addEventListener('click', () => {
-            const data = csvData[currentIndex];
-            if (data) {
-                const newNotes = notesInput.value;
-                data.notes = newNotes;
-                fetch('/user-dashboard/api/update_csv/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': Cookies.get('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        filename: currentCSV,
-                        phone: data.phone,
-                        notes: newNotes
-                    })
-                }).then(response => response.json())
-                  .then(result => {
-                      if (result.status === 'success') {
-                          showToast('Notes saved successfully', 'success');
-                          updateAdditionalInfo(data);
-                          updateProgressBar(); // Add this line
-                      } else {
-                          showToast('Failed to save notes', 'error');
-                      }
-                  });
+
+                // Set a flag in localStorage to show the modal when user returns
+                localStorage.setItem('showCallOutcomeModal', 'true');
             }
         });
     
@@ -570,7 +637,7 @@
             progressText.textContent = `${calledEntries} / ${totalEntries} called (${percentage.toFixed(1)}%)`;
         }
     
-        function saveNotes(phone, notes) {
+        function updateServerNotes(phone, notes) {
             fetch('/user-dashboard/api/update_csv/', {
                 method: 'POST',
                 headers: {
@@ -585,10 +652,7 @@
             }).then(response => response.json())
               .then(result => {
                   if (result.status === 'success') {
-                      showToast('Notes saved successfully', 'success');
-                      updateProgressBar(); // Add this line
-                  } else {
-                      showToast('Failed to save notes', 'error');
+                      updateProgressBar();
                   }
               });
         }
@@ -640,6 +704,184 @@
     
         // Initialize
         loadCSVFiles();
+
+        // Add modal close functionality
+        document.querySelector('.close').addEventListener('click', () => {
+            document.getElementById('scriptModal').style.display = 'none';
+        });
+
+        // Proceed with call button
+        document.getElementById('proceedCall').addEventListener('click', () => {
+            const data = csvData[currentIndex];
+            if (data) {
+                data.called = 'Yes';
+                
+                const currentDate = new Date().toLocaleString();
+                const calledNumber = selectedPhoneNumber || data.phone.split(',')[0].trim();
+                const newNote = `Called ${calledNumber} on ${currentDate}`;
+                data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
+
+                notesInput.value = data.notes;
+                updateServerNotes(data.phone, data.notes);
+                showNumber();
+                updateProgressBar();
+                startTimer();
+                
+                // Close modal and make the call
+                document.getElementById('scriptModal').style.display = 'none';
+                setTimeout(() => {
+                    window.location.href = `tel:${sanitizePhoneNumber(calledNumber)}`;
+                }, 100);
+            }
+        });
+
+        // Add event listeners for the outcome buttons
+        document.getElementById('clientDidntPickUp').addEventListener('click', () => {
+            const data = csvData[currentIndex];
+            const currentDate = new Date().toLocaleString();
+            const newNote = `[${currentDate}] Call Attempt - No Response`;
+            
+            data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
+            notesInput.value = data.notes;
+            updateServerNotes(data.phone, data.notes);
+            
+            document.getElementById('callOutcomeModal').style.display = 'none';
+            startTimer(); // Start the 30-second timer for next call
+        });
+
+        document.getElementById('clientPickedUp').addEventListener('click', () => {
+            document.getElementById('responseOptions').style.display = 'block';
+        });
+
+        // Cache DOM elements for better performance
+        const elements = {
+            modal: {
+                script: document.getElementById('scriptModal'),
+                callOutcome: document.getElementById('callOutcomeModal'),
+                followUp: document.getElementById('followUpSection')
+            },
+            buttons: {
+                responses: document.querySelectorAll('.response-button'),
+                confirmFollowUp: document.getElementById('confirmFollowUp')
+            },
+            inputs: {
+                followUpDateTime: document.getElementById('followUpDateTime')
+            }
+        };
+
+        // Response type configurations
+        const RESPONSE_TYPES = {
+            SUCCESS: {
+                key: 'Success',
+                text: '🎉 Lead Successfully Converted!'
+            },
+            INTERESTED: {
+                key: 'Interested',
+                text: 'Client was interested and requested follow-up'
+            },
+            NOT_INTERESTED: {
+                key: 'NotInterested',
+                text: 'Client was not interested but polite'
+            },
+            RUDE: {
+                key: 'Rude',
+                text: 'Client was not interested and rude'
+            },
+            CALLBACK: {
+                key: 'CallBack',
+                text: 'Client requested to call back later'
+            }
+        };
+
+        // Add event listeners for response buttons
+        elements.buttons.responses.forEach(button => {
+            button.addEventListener('click', () => handleResponse(button.dataset.response));
+        });
+
+        // Handle response selection
+        function handleResponse(response) {
+            if (response === RESPONSE_TYPES.INTERESTED.key) {
+                elements.modal.followUp.style.display = 'block';
+                return;
+            }
+            saveCallOutcome(response);
+        }
+
+        // Save call outcome with optimized data handling
+        function saveCallOutcome(response) {
+            const data = csvData[currentIndex];
+            const currentDate = new Date().toLocaleString();
+            
+            const responseConfig = Object.values(RESPONSE_TYPES).find(type => type.key === response);
+            let responseText = responseConfig.text;
+            
+            if (response === RESPONSE_TYPES.INTERESTED.key) {
+                responseText += ' (Follow-up scheduled via Calendly)';
+            }
+            
+            const newNote = `[${currentDate}] Call Outcome: ${responseText}`;
+            data.notes = data.notes ? `${data.notes}\n${newNote}` : newNote;
+            notesInput.value = data.notes;
+            
+            updateServerNotes(data.phone, data.notes);
+            closeModalsAndStartTimer();
+        }
+
+        // Close modals and start timer
+        function closeModalsAndStartTimer() {
+            elements.modal.callOutcome.style.display = 'none';
+            elements.modal.followUp.style.display = 'none';
+            startTimer();
+        }
+
+        // Handle follow-up confirmation
+        elements.buttons.confirmFollowUp.addEventListener('click', () => {
+            const followUpDate = elements.inputs.followUpDateTime.value;
+            const followUpEmail = document.getElementById('followUpEmail').value;
+            
+            if (!followUpDate) {
+                showToast('Please select a follow-up date and time', 'error');
+                return;
+            }
+            
+            if (!followUpEmail) {
+                showToast('Please enter the client\'s email address', 'error');
+                return;
+            }
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(followUpEmail)) {
+                showToast('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            const formattedDate = new Date(followUpDate).toLocaleString();
+            saveCallOutcome(RESPONSE_TYPES.INTERESTED.key, formattedDate, followUpEmail);
+        });
+
+        // Modify the visibility change event listener
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // Check if we need to show the modal
+                if (localStorage.getItem('showCallOutcomeModal') === 'true') {
+                    setTimeout(() => {
+                        document.getElementById('callOutcomeModal').style.display = 'block';
+                        localStorage.removeItem('showCallOutcomeModal'); // Clear the flag
+                    }, 5000); // 5 second delay
+                }
+            }
+        });
+
+        // Modify the focus event listener
+        window.addEventListener('focus', () => {
+            if (localStorage.getItem('showCallOutcomeModal') === 'true') {
+                setTimeout(() => {
+                    document.getElementById('callOutcomeModal').style.display = 'block';
+                    localStorage.removeItem('showCallOutcomeModal'); // Clear the flag
+                }, 5000); // 5 second delay
+            }
+        });
     </script>
     
 </body>

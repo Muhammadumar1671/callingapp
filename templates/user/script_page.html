@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Script</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --background: #ffffff;
+            --foreground: #333333;
+            --border: #dddddd;
+            --success: #28a745;
+            --error: #dc3545;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background);
+            color: var(--foreground);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .script-content {
+            white-space: pre-wrap;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .script-content strong {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .business-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .call-button {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .back-button {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        @media print {
+            .button-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="business-info">
+            <h3>Business Information</h3>
+            <p><strong>Name:</strong> <span id="businessName"></span></p>
+            <p><strong>Address:</strong> <span id="businessAddress"></span></p>
+            <p><strong>Phone:</strong> <span id="businessPhone"></span></p>
+        </div>
+
+        <div class="script-content" id="scriptContent">
+            Loading script...
+        </div>
+
+        <div class="button-container">
+            <button class="button back-button" onclick="window.close()">Close</button>
+            <button class="button" onclick="window.print()">Print Script</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get business data from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessData = JSON.parse(decodeURIComponent(urlParams.get('data')));
+            
+            // Update business info
+            document.getElementById('businessName').textContent = businessData.name || 'N/A';
+            document.getElementById('businessAddress').textContent = businessData.address || 'N/A';
+            document.getElementById('businessPhone').textContent = businessData.phone || 'N/A';
+            
+            // Generate script using the passed CSRF token
+            fetch('/user-dashboard/api/generate-script/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': businessData.csrftoken
+                },
+                body: JSON.stringify({
+                    name: businessData.name,
+                    address: businessData.address,
+                    phone: businessData.phone,
+                    services: businessData.services,
+                    notes: businessData.notes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.script) {
+                    // Convert markdown-style bold text to HTML bold tags
+                    const formattedScript = data.script.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    document.getElementById('scriptContent').innerHTML = formattedScript;
+                } else {
+                    document.getElementById('scriptContent').textContent = 'Failed to generate script';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('scriptContent').textContent = 'Error generating script';
+            });
+        });
+    </script>
+</body>
+</html> 

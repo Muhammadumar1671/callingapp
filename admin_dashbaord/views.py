@@ -62,12 +62,12 @@ def add_document(request):
         content = document.read().decode('utf-8').splitlines()
         processed_lines = []
         
-        # Add headers if they don't exist
+        # Add headers
         headers = ['phone', 'name', 'address', 'website', 'services']
-        if not content or not any(header in content[0].lower() for header in headers):
-            processed_lines.append(','.join(headers))
+        processed_lines.append(','.join(headers))
         
-        for line in content:
+        # Skip the first line and process the rest
+        for line in content[1:]:  # Changed this line to start from index 1
             parts = line.split(',', 4)  # Split into 5 parts
             
             # Clean up phone number format (first column)
