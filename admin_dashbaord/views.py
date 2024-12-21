@@ -15,6 +15,7 @@ from django.conf import settings
 import pandas as pd
 import zipfile
 from datetime import datetime
+import csv
 
 
 @api_view(['GET'])
@@ -41,48 +42,57 @@ def get_all_users(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_document(request):
-    document = request.FILES.get('document')
+    if 'document' not in request.FILES:
+        return Response({'error': 'No document provided.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    document = request.FILES['document']
     username = request.POST.get('username')
     
-    if not document or not username:
-        return Response({'error': 'No document or username provided.'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if not document.name.endswith('.csv'):
-        return Response({'error': 'Only CSV files are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not username:
+        return Response({'error': 'No username provided.'}, status=status.HTTP_400_BAD_REQUEST)
     
     user = get_object_or_404(User, username=username)
+    
+    # Create user's document directory if it doesn't exist
+    user_documents_path = os.path.join(settings.MEDIA_ROOT, 'documents', str(user.username))
+    os.makedirs(user_documents_path, exist_ok=True)
     
     try:
         # Read the content and process it line by line
         content = document.read().decode('utf-8').splitlines()
         processed_lines = []
         
+        # Add headers if they don't exist
+        headers = ['phone', 'name', 'address', 'website', 'services']
+        if not content or not any(header in content[0].lower() for header in headers):
+            processed_lines.append(','.join(headers))
+        
         for line in content:
             parts = line.split(',', 4)  # Split into 5 parts
             
-            # Fix empty or [] in first column
-            if not parts[0] or parts[0] == '[]':
-                parts[0] = '["123456"]'
-                
-            # Fix category format in last column
-            if parts[-1].startswith('[') and parts[-1].endswith(']'):
-                parts[-1] = parts[-1].strip('[]\'\" ')
-                
+            # Clean up phone number format (first column)
+            if parts[0]:
+                # Remove brackets, quotes, and spaces, then extract just the numbers
+                phone = ''.join(filter(str.isdigit, parts[0]))
+                parts[0] = phone if phone else '123456'
+            else:
+                parts[0] = '123456'
+            
+            # Ensure all parts exist
+            while len(parts) < 5:
+                parts.append('')
+            
             processed_lines.append(','.join(parts))
         
-        # Define the base directory and user-specific directory
-        user_directory = os.path.join(settings.MEDIA_ROOT, 'documents', str(user.username))
-        os.makedirs(user_directory, exist_ok=True)
-        
-        # Save the modified content
-        document_path = os.path.join(user_directory, document.name)
-        with open(document_path, 'w', encoding='utf-8') as f:
+        # Save the processed content
+        file_path = os.path.join(user_documents_path, document.name)
+        with open(file_path, 'w', newline='') as f:
             f.write('\n'.join(processed_lines))
         
-        return Response({'message': 'Document uploaded and formatted successfully'}, status=status.HTTP_201_CREATED)
-        
+        return Response({'message': 'Document added successfully'}, status=status.HTTP_201_CREATED)
+    
     except Exception as e:
-        return Response({'error': f'Failed to process document: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': f'Error processing document: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -235,9 +245,11 @@ def split_csv(request):
         except ValueError:
             return Response({'error': 'Invalid row distribution format'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Read the CSV file and drop the first column
-        df = pd.read_csv(csv_file)
-        total_rows = len(df)
+        # Read the CSV file using csv module instead of pandas
+        csv_content = csv_file.read().decode('utf-8').splitlines()
+        header = csv_content[0]  # Get the header row
+        data_rows = csv_content[1:]  # Get all data rows
+        total_rows = len(data_rows)
         
         # Validate if we have enough rows
         if sum(rows_per_file) > total_rows:
@@ -250,19 +262,24 @@ def split_csv(request):
         user_dir = os.path.join(settings.MEDIA_ROOT, 'documents', str(request.user.username), 'split_files', timestamp)
         os.makedirs(user_dir, exist_ok=True)
         
-        # Split the dataframe according to the distribution
+        # Split the data according to the distribution
         split_files = []
         current_row = 0
         
         for i, num_rows in enumerate(rows_per_file):
-            # Extract rows for this file
-            file_df = df.iloc[current_row:current_row + num_rows].copy()
-            current_row += num_rows
-            
             # Create split CSV file
             split_filename = f'split_{i + 1}.csv'
             split_path = os.path.join(user_dir, split_filename)
-            file_df.to_csv(split_path, index=False)
+            
+            # Get the rows for this split
+            split_rows = data_rows[current_row:current_row + num_rows]
+            current_row += num_rows
+            
+            # Write the split file with header and data
+            with open(split_path, 'w', newline='') as f:
+                f.write(header + '\n')  # Write header
+                f.write('\n'.join(split_rows))  # Write data rows
+            
             split_files.append(split_path)
         
         # Create ZIP file
@@ -286,6 +303,6 @@ def split_csv(request):
         os.rmdir(user_dir)
         
         return response
-
+        
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': f'Error splitting CSV: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
